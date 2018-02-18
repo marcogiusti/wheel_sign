@@ -1,0 +1,27 @@
+==========
+wheel_sign
+==========
+
+Sign and verify python wheel files using a x509 certificate.
+
+Installation
+============
+
+wheel_sign is pip installable::
+
+    pip install git+https://github.com/marcogiusti/wheel_sign
+
+Quick start
+===========
+
+If you don't have a certificate, create one with ``openssl req``::
+
+    openssl req -x509 -newkey rsa:4096 -keyout privkey.pem -out cert.pem -days 365
+
+Use the private key and the certificate to make signatures and the
+certificate to verify them::
+
+    python -m wheel_sign sign --privkey privkey.pem --certificate cert.pem --wheelfile <filename>
+    python -m wheel_sign verify --include-file cert.pem --wheelfile <filename>
+
+.. vim: ft=rst:tw=72

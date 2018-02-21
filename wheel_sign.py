@@ -2,7 +2,6 @@
 # vim: sts=4:sw=4:et
 # Copyright (C) 2016 Marco Giusti
 
-from contextlib import closing
 from functools import partial
 from itertools import zip_longest
 import zipfile
@@ -217,9 +216,9 @@ class WheelVerifier:
         zf.set_expected_hash(_certfile(wheelfile), None)
 
     @classmethod
-    def from_filename(cls, filename):
+    def from_file(cls, filename, fp):
         try:
-            return cls(wheel.install.WheelFile(filename))
+            return cls(wheel.install.WheelFile(filename, fp))
         except (wheel.install.BadWheelFile, zipfile.BadZipfile) as exc:
             raise InvalidFile(str(exc))
 
@@ -260,13 +259,11 @@ class WheelVerifier:
     def records(self):
         return self._read_file(_record(self._wheelfile))
 
-    def close(self):
-        self._zipfile.close()
-
 
 def verify_wheel(wheelfile, exclude_default_paths=False, include_paths=(),
                  hostname=None, pwd=None):
-    with closing(WheelVerifier.from_filename(wheelfile)) as wheel_verifier:
+    with open(wheelfile, 'rb') as fp:
+        wheel_verifier = WheelVerifier.from_file(wheelfile, fp)
         verifier = SignatureVerifier.from_wheel_verifier(wheel_verifier)
         if not exclude_default_paths:
             verifier = verifier.add_default_paths()
@@ -363,13 +360,13 @@ def sign_wheel(wheelfile, certificate, privkey):
         # XXX: which encoding?
         password = password.encode('utf-8')
         key = load_pem_private_key(privkey_pem, password, backend)
-    wf = wheel.install.WheelFile(wheelfile, append=True)
-    records = wf.zipfile.read(_record(wf))
-    signature = _sign(records, key)
-    wf.zipfile.writestr(_signfile(wf), signature)
-    with open(certificate) as fp:
-        wf.zipfile.writestr(_certfile(wf), fp.read())
-    wf.zipfile.close()
+    with open(wheelfile, 'a') as fp:
+        wf = wheel.install.WheelFile(wheelfile, fp, append=True)
+        records = wf.zipfile.read(_record(wf))
+        signature = _sign(records, key)
+        wf.zipfile.writestr(_signfile(wf), signature)
+        with open(certificate) as fp:
+            wf.zipfile.writestr(_certfile(wf), fp.read())
 
 
 def _sign_wheel_cmdline(args):
